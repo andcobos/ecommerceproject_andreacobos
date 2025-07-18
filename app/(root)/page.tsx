@@ -1,10 +1,11 @@
 import { getLatestProducts } from '@/lib/actions/product.actions';
 import ProductList from '@/components/shared/product/product-list';
+import { Product } from '@/types';  // Asegúrate que el tipo Product tenga price:string y rating:string
 
 const Homepage = async () => {
   const rawProducts = await getLatestProducts();
 
-  const latestProducts = rawProducts.map(product => ({
+  const latestProducts: Product[] = rawProducts.map((product) => ({
     ...product,
     price: product.price.toString(),
     rating: product.rating.toString(),
