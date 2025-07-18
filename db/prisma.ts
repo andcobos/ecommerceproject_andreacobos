@@ -1,15 +1,13 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaNeon } from '@prisma/adapter-neon';
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import ws from 'ws';
 
-neonConfig.webSocketConstructor = ws;
+type ExtendedPrismaClient = typeof client;
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+declare global {
+  // Use the extended Prisma client type
+  var prisma: ExtendedPrismaClient | undefined;
+}
 
-const adapter = new PrismaNeon(pool);
-
-export const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL }).$extends({
+const client = new PrismaClient().$extends({
   result: {
     product: {
       price: {
@@ -23,64 +21,11 @@ export const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL
         },
       },
     },
-    cart: {
-      itemsPrice: {
-        needs: { itemsPrice: true },
-        compute(cart) {
-          return cart.itemsPrice.toString();
-        },
-      },
-      shippingPrice: {
-        needs: { shippingPrice: true },
-        compute(cart) {
-          return cart.shippingPrice.toString();
-        },
-      },
-      taxPrice: {
-        needs: { taxPrice: true },
-        compute(cart) {
-          return cart.taxPrice.toString();
-        },
-      },
-      totalPrice: {
-        needs: { totalPrice: true },
-        compute(cart) {
-          return cart.totalPrice.toString();
-        },
-      },
-    },
-    order: {
-      itemsPrice: {
-        needs: { itemsPrice: true },
-        compute(cart) {
-          return cart.itemsPrice.toString();
-        },
-      },
-      shippingPrice: {
-        needs: { shippingPrice: true },
-        compute(cart) {
-          return cart.shippingPrice.toString();
-        },
-      },
-      taxPrice: {
-        needs: { taxPrice: true },
-        compute(cart) {
-          return cart.taxPrice.toString();
-        },
-      },
-      totalPrice: {
-        needs: { totalPrice: true },
-        compute(cart) {
-          return cart.totalPrice.toString();
-        },
-      },
-    },
-    orderItem: {
-      price: {
-        compute(cart) {
-          return cart.price.toString();
-        },
-      },
-    },
   },
 });
+
+export const prisma = globalThis.prisma || client;
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.prisma = prisma;
+}
