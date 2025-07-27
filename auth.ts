@@ -3,117 +3,63 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/db/prisma';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compareSync } from 'bcrypt-ts-edge';
-import type {NextAuthConfig} from 'next-auth';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 
 export const config = {
-    pages: {
-        signIn: '/sign-in',
-        error: '/sign-in',
-    },
-    session: {
-        strategy: 'jwt' as const,
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-    },
-    adapter: PrismaAdapter(prisma),
-    providers: [
-        CredentialsProvider({
-            credentials: {
-                email: { type: 'email' },
-                password: { type: 'password' },
-            },
-            async authorize(credentials) {
-                if (credentials == null) return null;
+  pages: {
+    signIn: '/sign-in',
+    error: '/sign-in',
+  },
+  session: {
+    strategy: 'jwt' as const,
+    maxAge: 30 * 24 * 60 * 60,
+  },
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    CredentialsProvider({
+      credentials: {
+        email: { type: 'email' },
+        password: { type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials) return null;
 
-                const user = await prisma.user.findFirst({
-                    where: {
-                        email: credentials.email as string,
-                    },
-                });
-                // Check if user exists and if the password matches
-                if (user && user.password) {
-                    const isMatch = compareSync(
-                        credentials.password as string,
-                        user.password
-                    );
+        const user = await prisma.user.findFirst({
+          where: { email: credentials.email as string },
+        });
 
-                    // If password is correct, return user
-                    if (isMatch) {
-                        return {
-                            id: user.id,
-                            name: user.name,
-                            email: user.email,
-                            role: user.role,
-                        };
-                    }
-                }
-                // If user does not exist or password does not match return null
-                return null;
-            },
-        }),
-    ],
-
-    callbacks: {
-        async session({ session, user, trigger, token }: any) {
-            // Set the user ID from the token
-            session.user.id = token.sub;
-            session.user.role = token.role;
-            session.user.name = token.name;
-
-            //console.log(token);
-
-            // If there is an update, set the user name
-            if (trigger === 'update') {
-                session.user.name = user.name;
-            }
-
-            return session;
-        },
-        async jwt({ token, user, trigger, session }: any ) {
-        // Assign user fields to token
-        if (user) {
-            token.role = user.role;
-
-            // If user has no name then use the email
-            if (user.name === 'NO_NAME') {
-            token.name = user.email!.split('@')[0];
-
-            // Update database to reflect the token name
-            await prisma.user.update({
-                where: { id: user.id },
-                data: { name: token.name },
-            });
-            }
+        if (user && user.password) {
+          const isMatch = compareSync(credentials.password as string, user.password);
+          if (isMatch) {
+            return {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+            };
+          }
         }
-        return token;
+
+        return null;
+      },
+    }),
+  ],
+  callbacks: {
+    async session({ session, token }: any) {
+      session.user.id = token.sub;
+      session.user.role = token.role;
+      session.user.name = token.name;
+      return session;
     },
-    authorized({ request, auth }: any){
-        //session card id check for session cart cookie
-        if (!request.cookies.get('sessionCartId')){
-            //generate new session cart id cookie
-            const sessionCartId = crypto.randomUUID();
-
-            //clone the req headers
-            const newRequestHeaders = new Headers(request.headers);
-
-            //create new response and add new headers
-            const response = NextResponse.next({
-                request: {
-                    headers: newRequestHeaders
-                }
-            });
-            
-            //set newly generated sessionCardId in the respose cookies
-            response.cookies.set('sessionCartId', sessionCartId);
-            return response;
-
-        } else{
-            return true;
-        }
-        
+    async jwt({ token, user }: any) {
+      if (user) {
+        token.role = user.role;
+        token.name = user.name === 'NO_NAME' ? user.email.split('@')[0] : user.name;
+      }
+      return token;
     },
-},
-} //satisfies NextAuthConfig;
+  },
+};
 
 export const { handlers, auth, signIn, signOut } = NextAuth(config);
