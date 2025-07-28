@@ -1,14 +1,17 @@
+// auth.ts
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/db/prisma';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compareSync } from 'bcrypt-ts-edge';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { authConfig as baseAuthConfig } from './auth.config';
 
 export const runtime = 'nodejs';
 
 export const authConfig = {
+  ...baseAuthConfig,
+  adapter: PrismaAdapter(prisma),
   pages: {
     signIn: '/sign-in',
     error: '/sign-in',
@@ -17,7 +20,6 @@ export const authConfig = {
     strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60,
   },
-  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       credentials: {
@@ -42,19 +44,18 @@ export const authConfig = {
             };
           }
         }
-
         return null;
       },
     }),
   ],
   callbacks: {
+    ...baseAuthConfig.callbacks,
     async session({ session, token }: any) {
       session.user.id = token.sub;
       session.user.role = token.role;
       session.user.name = token.name;
       return session;
     },
-
     async jwt({ token, user, trigger, session }: any) {
       if (user) {
         token.id = user.id;
@@ -62,7 +63,6 @@ export const authConfig = {
 
         if (user.name === 'NO_NAME') {
           token.name = user.email!.split('@')[0];
-
           await prisma.user.update({
             where: { id: user.id },
             data: { name: token.name },
@@ -79,10 +79,7 @@ export const authConfig = {
             });
 
             if (sessionCart) {
-              await prisma.cart.deleteMany({
-                where: { userId: user.id },
-              });
-
+              await prisma.cart.deleteMany({ where: { userId: user.id } });
               await prisma.cart.update({
                 where: { id: sessionCart.id },
                 data: { userId: user.id },
@@ -92,51 +89,12 @@ export const authConfig = {
         }
       }
 
-      // Actualiza el nombre en caso de update
       if (session?.user.name && trigger === 'update') {
         token.name = session.user.name;
       }
 
       return token;
     },
-  },
-
-  /**
-   * Función de autorización para el middleware
-   */
-  authorized({ request, auth }: any) {
-    // Rutas protegidas
-    const protectedPaths = [
-      /\/shipping-address/,
-      /\/payment-method/,
-      /\/place-order/,
-      /\/profile/,
-      /\/user\/(.*)/,
-      /\/order\/(.*)/,
-      /\/admin/,
-    ];
-
-    const { pathname } = request.nextUrl;
-
-    // Si no está autenticado y accede a una ruta protegida
-    if (!auth && protectedPaths.some((p) => p.test(pathname))) return false;
-
-    // Revisa o crea el sessionCartId si no existe
-    if (!request.cookies.get('sessionCartId')) {
-      const sessionCartId = crypto.randomUUID();
-      const newRequestHeaders = new Headers(request.headers);
-
-      const response = NextResponse.next({
-        request: {
-          headers: newRequestHeaders,
-        },
-      });
-
-      response.cookies.set('sessionCartId', sessionCartId);
-      return response;
-    }
-
-    return true;
   },
 };
 
