@@ -1,4 +1,5 @@
 'use client';
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -20,6 +21,8 @@ import {
   PayPalScriptProvider,
   usePayPalScriptReducer,
 } from '@paypal/react-paypal-js';
+
+import { createPayPalOrder, approvePayPalOrder } from '@/lib/actions/order.actions'; // 👈 importa las funciones del servidor
 
 const OrderDetailsTable = ({
   order,
@@ -55,26 +58,18 @@ const OrderDetailsTable = ({
     return status;
   };
 
-  /** 🔹 Ahora llamamos a la API en vez de importar funciones del servidor */
+  // Llama directo al servidor
   const handleCreatePayPalOrder = async () => {
-    const res = await fetch(`/api/order/paypal/${order.id}`, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'create' }),
-    }).then((res) => res.json());
-
+    const res = await createPayPalOrder(order.id);
     if (!res.success) {
       toast.error(res.message);
+      return ''; // sin orderID PayPal no abre popup
     }
-
     return res.data;
   };
 
   const handleApprovePayPalOrder = async (data: { orderID: string }) => {
-    const res = await fetch(`/api/order/paypal/${order.id}`, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'approve', data }),
-    }).then((res) => res.json());
-
+    const res = await approvePayPalOrder(order.id, data);
     if (res.success) {
       toast.success(res.message);
     } else {
