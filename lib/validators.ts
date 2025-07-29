@@ -96,6 +96,11 @@ export const insertOrderSchema = z.object({
   shippingAddress: shippingAddressSchema,
 });
 
+// Schema for updating products
+export const updateProductSchema = insertProductSchema.extend({
+  id: z.string().min(1, 'Id is required'),
+});
+
 // Schema for inserting an order item
 export const insertOrderItemSchema = z.object({
   productId: z.string(),
