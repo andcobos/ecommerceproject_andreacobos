@@ -50,7 +50,7 @@ const OrderDetailsPage = async (props: {
       }}
     //   stripeClientSecret={client_secret}
       paypalClientId={process.env.PAYPAL_CLIENT_ID || 'sb'}
-    //   isAdmin={session?.user?.role === 'admin' || false}
+       isAdmin={session?.user?.role === 'admin' || false}
     />
   );
 };
