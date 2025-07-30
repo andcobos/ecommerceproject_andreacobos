@@ -26,12 +26,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { reviewFormDefaultValues } from '@/lib/constants';
 import { insertReviewSchema } from '@/lib/validators';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { StarIcon } from 'lucide-react';
 import { useState } from 'react';
-import { SubmitHandler, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import {
   createUpdateReview,
@@ -50,9 +49,18 @@ const ReviewForm = ({
 }) => {
   const [open, setOpen] = useState(false);
 
-  const form = useForm<z.infer<typeof insertReviewSchema>>({
+  // Create default values that match the insertReviewSchema
+  const defaultValues = {
+    title: '',
+    description: '',
+    productId: '',
+    userId: '',
+    rating: 1,
+  };
+
+  const form = useForm({
     resolver: zodResolver(insertReviewSchema),
-    defaultValues: reviewFormDefaultValues,
+    defaultValues: defaultValues,
   });
 
   // Open Form Handler
@@ -72,9 +80,7 @@ const ReviewForm = ({
   };
 
   // Submit Form Handler
-  const onSubmit: SubmitHandler<z.infer<typeof insertReviewSchema>> = async (
-    values
-  ) => {
+  const onSubmit = async (values: z.infer<typeof insertReviewSchema>) => {
     const res = await createUpdateReview({ ...values, productId });
 
     if (!res.success) {
@@ -132,8 +138,8 @@ const ReviewForm = ({
                   <FormItem>
                     <FormLabel>Rating</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
-                      value={field.value.toString()}
+                      onValueChange={(value) => field.onChange(Number(value))}
+                      value={field.value?.toString() || '1'}
                     >
                       <FormControl>
                         <SelectTrigger>
