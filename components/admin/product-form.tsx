@@ -1,6 +1,5 @@
 'use client';
 
-import { productDefaultValues } from '@/lib/constants';
 import { insertProductSchema, updateProductSchema } from '@/lib/validators';
 import { Product } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,6 +25,9 @@ import Image from 'next/image';
 import { Checkbox } from '../ui/checkbox';
 import { toast } from 'sonner';
 
+// Union type for all possible form data
+type ProductFormData = z.infer<typeof insertProductSchema> | z.infer<typeof updateProductSchema>;
+
 const ProductForm = ({
   type,
   product,
@@ -37,18 +39,40 @@ const ProductForm = ({
 }) => {
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof insertProductSchema>>({
-    resolver:
-      type === 'Update'
-        ? zodResolver(updateProductSchema)
-        : zodResolver(insertProductSchema),
-    defaultValues:
-      product && type === 'Update' ? product : productDefaultValues,
+  // Create default values that match the insertProductSchema
+  const defaultValues = {
+    name: '',
+    slug: '',
+    category: '',
+    brand: '',
+    description: '',
+    stock: 0,
+    images: [] as string[],
+    isFeatured: false,
+    banner: null as string | null,
+    price: '0.00',
+  };
+
+  // Use the base schema type for the form, handle the ID separately
+  const form = useForm({
+    resolver: zodResolver(insertProductSchema),
+    defaultValues: product && type === 'Update' 
+      ? {
+          name: product.name,
+          slug: product.slug,
+          category: product.category,
+          brand: product.brand,
+          description: product.description,
+          stock: product.stock,
+          images: product.images,
+          isFeatured: product.isFeatured,
+          banner: product.banner,
+          price: product.price,
+        }
+      : defaultValues,
   });
 
-  const onSubmit: SubmitHandler<z.infer<typeof insertProductSchema>> = async (
-    values
-  ) => {
+  const onSubmit = async (values: z.infer<typeof insertProductSchema>) => {
     // On Create
     if (type === 'Create') {
       const res = await createProduct(values);
@@ -68,7 +92,9 @@ const ProductForm = ({
         return;
       }
 
-      const res = await updateProduct({ ...values, id: productId });
+      // Validate the values against updateProductSchema before sending
+      const updateValues = updateProductSchema.parse({ ...values, id: productId });
+      const res = await updateProduct(updateValues);
 
       if (!res.success) {
         toast.error(res.message);
@@ -95,14 +121,7 @@ const ProductForm = ({
           <FormField
             control={form.control}
             name='name'
-            render={({
-              field,
-            }: {
-              field: ControllerRenderProps<
-                z.infer<typeof insertProductSchema>,
-                'name'
-              >;
-            }) => (
+            render={({ field }) => (
               <FormItem className='w-full'>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
@@ -116,14 +135,7 @@ const ProductForm = ({
           <FormField
             control={form.control}
             name='slug'
-            render={({
-              field,
-            }: {
-              field: ControllerRenderProps<
-                z.infer<typeof insertProductSchema>,
-                'slug'
-              >;
-            }) => (
+            render={({ field }) => (
               <FormItem className='w-full'>
                 <FormLabel>Slug</FormLabel>
                 <FormControl>
@@ -153,14 +165,7 @@ const ProductForm = ({
           <FormField
             control={form.control}
             name='category'
-            render={({
-              field,
-            }: {
-              field: ControllerRenderProps<
-                z.infer<typeof insertProductSchema>,
-                'category'
-              >;
-            }) => (
+            render={({ field }) => (
               <FormItem className='w-full'>
                 <FormLabel>Category</FormLabel>
                 <FormControl>
@@ -174,14 +179,7 @@ const ProductForm = ({
           <FormField
             control={form.control}
             name='brand'
-            render={({
-              field,
-            }: {
-              field: ControllerRenderProps<
-                z.infer<typeof insertProductSchema>,
-                'brand'
-              >;
-            }) => (
+            render={({ field }) => (
               <FormItem className='w-full'>
                 <FormLabel>Brand</FormLabel>
                 <FormControl>
@@ -197,14 +195,7 @@ const ProductForm = ({
           <FormField
             control={form.control}
             name='price'
-            render={({
-              field,
-            }: {
-              field: ControllerRenderProps<
-                z.infer<typeof insertProductSchema>,
-                'price'
-              >;
-            }) => (
+            render={({ field }) => (
               <FormItem className='w-full'>
                 <FormLabel>Price</FormLabel>
                 <FormControl>
@@ -218,18 +209,17 @@ const ProductForm = ({
           <FormField
             control={form.control}
             name='stock'
-            render={({
-              field,
-            }: {
-              field: ControllerRenderProps<
-                z.infer<typeof insertProductSchema>,
-                'stock'
-              >;
-            }) => (
+            render={({ field }) => (
               <FormItem className='w-full'>
                 <FormLabel>Stock</FormLabel>
                 <FormControl>
-                  <Input placeholder='Enter stock' {...field} />
+                  <Input 
+                    placeholder='Enter stock' 
+                    type='number'
+                    {...field}
+                    value={field.value?.toString() || ''}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -325,14 +315,7 @@ const ProductForm = ({
           <FormField
             control={form.control}
             name='description'
-            render={({
-              field,
-            }: {
-              field: ControllerRenderProps<
-                z.infer<typeof insertProductSchema>,
-                'description'
-              >;
-            }) => (
+            render={({ field }) => (
               <FormItem className='w-full'>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
