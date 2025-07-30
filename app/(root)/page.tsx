@@ -1,26 +1,21 @@
-import { getLatestProducts } from '@/lib/actions/product.actions';
+import { getLatestProducts, getFeaturedProducts } from '@/lib/actions/product.actions';
 import ProductList from '@/components/shared/product/product-list';
+import ProductCarousel from '@/components/shared/product/product-carousel';
+import ViewAllProductsButton from '@/components/view-all-products-button';
 
 const Homepage = async () => {
-  try {
     const latestProducts = await getLatestProducts();
+    const featuredProducts = await getFeaturedProducts();
+
+
     return  (
       <>
-        <ProductList data={latestProducts} 
-        title='Newest Products'
-        limit={4} />
-      </> 
-    );   
-  } catch (error) {
-    console.error('Error fetching latest products:', error);
-    return (
-      <div className="text-center py-8">
-        <h2 className="text-2xl font-bold mb-4">Welcome to Prostore</h2>
-        <p>Loading products...</p>
-      </div>
+      { featuredProducts.length > 0 && <ProductCarousel data={featuredProducts}/>}
+      <ProductList data={latestProducts} title='Newest Arrivals' limit={4}/>
+      <ViewAllProductsButton/>
+      </>
     );
-  }
-}
+}; 
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = 'force-dynamic';
